@@ -1,14 +1,15 @@
 package edu.neu.info7255.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.*;
 
+import java.io.Serializable;
 import java.util.List;
 
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 public class MedicalPlan {
     private PlanCostShares planCostShares;
     private List<LinkedPlanServices> linkedPlanServices;

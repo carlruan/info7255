@@ -18,7 +18,10 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.Set;
+
+import static org.springframework.http.RequestEntity.put;
 
 @RestController
 @RequestMapping("/plan")
@@ -28,10 +31,17 @@ public class MedicalPlanController {
     private JsonSchema jsonSchema;
     @Autowired
     private RedisTemplate<String, MedicalPlan> redisTemplate;
-    @PostMapping("/{id}")
-    public ResponseEntity<Object> createPlan(@RequestBody String resquestJsonString, @PathVariable(value = "id") String id) throws JsonProcessingException, NoSuchAlgorithmException {
+    @PostMapping()
+    public ResponseEntity<Object> createPlan(@RequestBody String resquestJsonString) throws JsonProcessingException, NoSuchAlgorithmException {
         ObjectMapper om = new ObjectMapper();
-        JsonNode jsonNode = om.readTree(resquestJsonString);
+        JsonNode jsonNode;
+        try{
+            jsonNode = om.readTree(resquestJsonString);
+        }catch (JsonProcessingException e){
+            log.error("Parsing json error! " + e.getMessage());
+            throw new CustomException(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+
         Set<ValidationMessage> errors = jsonSchema.validate(jsonNode);
         if(!errors.isEmpty()){
             StringBuilder err = new StringBuilder();
@@ -40,24 +50,45 @@ public class MedicalPlanController {
                 err.append(error.toString()).append("; ");
             }
             throw new CustomException(err.toString(), HttpStatus.BAD_REQUEST);
-//            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(err.toString());
         }
         MedicalPlan medicalPlan = om.readValue(resquestJsonString, MedicalPlan.class);
         String hashText = generateMD5Hash(resquestJsonString);
         medicalPlan.setMd5Hash(hashText);
         log.info("Parsing input String: \n" + medicalPlan);
+        String id = medicalPlan.getObjectId();
         redisTemplate.opsForValue().set(id, medicalPlan);
-        return ResponseEntity.status(HttpStatus.CREATED).eTag(hashText).body(medicalPlan);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .eTag(hashText)
+                .body(new HashMap<String, String>(){{
+            put("objectId", id);
+        }});
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<MedicalPlan> getPlan(@RequestHeader(HttpHeaders.IF_NONE_MATCH) String md5Hash, @PathVariable(value = "id") String id){
+    public ResponseEntity<MedicalPlan> getPlan(@RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String md5Hash, @PathVariable(value = "id") String id){
         MedicalPlan medicalPlan = redisTemplate.opsForValue().get(id);
+        if(medicalPlan == null){
+            throw new CustomException("Object does not exist!", HttpStatus.NOT_FOUND);
+        }
+        if(md5Hash == null || md5Hash.length() == 0){
+            return ResponseEntity.status(HttpStatus.OK).eTag(medicalPlan.getMd5Hash()).body(medicalPlan);
+        }
         if(medicalPlan.getMd5Hash().equals(md5Hash)){
-            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).body(null);
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(md5Hash).body(null);
         }else{
             return ResponseEntity.status(HttpStatus.OK).eTag(medicalPlan.getMd5Hash()).body(medicalPlan);
         }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Object> deletePlan(@PathVariable(value = "id") String id){
+        MedicalPlan medicalPlan = redisTemplate.opsForValue().get(id);
+        if(medicalPlan == null){
+            throw new CustomException("Object does not exist!", HttpStatus.NOT_FOUND);
+        }
+        redisTemplate.delete(medicalPlan.getObjectId());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 
 //    @PatchMapping("/{id}")

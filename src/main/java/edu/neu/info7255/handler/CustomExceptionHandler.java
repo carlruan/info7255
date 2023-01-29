@@ -12,7 +12,6 @@ import java.time.ZonedDateTime;
 public class CustomExceptionHandler {
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<Message> handleException(CustomException e){
-        Error err = new Error(e.getMessage());
         return ResponseEntity.status(e.getHttpStatus()).body(new Message(e.getMessage()));
     }
 }
