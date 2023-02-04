@@ -18,5 +18,4 @@ public class MedicalPlan {
     private String objectType;
     private String planType;
     private String creationDate;
-    private String md5Hash;
 }

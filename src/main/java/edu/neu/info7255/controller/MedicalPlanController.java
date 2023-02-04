@@ -30,7 +30,10 @@ public class MedicalPlanController {
     @Autowired
     private JsonSchema jsonSchema;
     @Autowired
-    private RedisTemplate<String, MedicalPlan> redisTemplate;
+    private RedisTemplate<String, MedicalPlan> redisMedicalPlanTemplate;
+
+    @Autowired
+    private RedisTemplate<String, String> redisMd5hashTemplate;
     @PostMapping()
     public ResponseEntity<Object> createPlan(@RequestBody String resquestJsonString) throws JsonProcessingException, NoSuchAlgorithmException {
         ObjectMapper om = new ObjectMapper();
@@ -47,16 +50,16 @@ public class MedicalPlanController {
             StringBuilder err = new StringBuilder();
             for(ValidationMessage error : errors){
                 log.error("Parsing json error! " + error.toString());
-                err.append(error.toString()).append("; ");
+                err.append(error).append("; ");
             }
             throw new CustomException(err.toString(), HttpStatus.BAD_REQUEST);
         }
         MedicalPlan medicalPlan = om.readValue(resquestJsonString, MedicalPlan.class);
-        String hashText = generateMD5Hash(resquestJsonString);
-        medicalPlan.setMd5Hash(hashText);
-        log.info("Parsing input String: \n" + medicalPlan);
+        String hashText = generateMD5Hash(medicalPlan.toString());
+        log.info("Creating mediacl plan: "  + medicalPlan);
         String id = medicalPlan.getObjectId();
-        redisTemplate.opsForValue().set(id, medicalPlan);
+        redisMedicalPlanTemplate.opsForValue().set(id, medicalPlan);
+        redisMd5hashTemplate.opsForValue().set(id + "-md5hash", hashText);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .eTag(hashText)
@@ -66,28 +69,27 @@ public class MedicalPlanController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<MedicalPlan> getPlan(@RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String md5Hash, @PathVariable(value = "id") String id){
-        MedicalPlan medicalPlan = redisTemplate.opsForValue().get(id);
-        if(medicalPlan == null){
-            throw new CustomException("Object does not exist!", HttpStatus.NOT_FOUND);
+    public ResponseEntity<MedicalPlan> getPlan(@RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String etag, @PathVariable(value = "id") String id){
+        String md5hash = redisMd5hashTemplate.opsForValue().get(id + "-md5hash");
+        MedicalPlan medicalPlan = redisMedicalPlanTemplate.opsForValue().get(id);
+        if(md5hash == null || medicalPlan == null) throw new CustomException("Medical plan with id: "+ id + "does not exist!", HttpStatus.NOT_FOUND);
+        if(etag == null || etag.length() == 0){
+            return ResponseEntity.status(HttpStatus.OK).eTag(md5hash).body(medicalPlan);
         }
-        if(md5Hash == null || md5Hash.length() == 0){
-            return ResponseEntity.status(HttpStatus.OK).eTag(medicalPlan.getMd5Hash()).body(medicalPlan);
-        }
-        if(medicalPlan.getMd5Hash().equals(md5Hash)){
-            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(md5Hash).body(null);
+        if(etag.equals(md5hash)){
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(md5hash).body(null);
         }else{
-            return ResponseEntity.status(HttpStatus.OK).eTag(medicalPlan.getMd5Hash()).body(medicalPlan);
+            return ResponseEntity.status(HttpStatus.OK).eTag(md5hash).body(medicalPlan);
         }
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Object> deletePlan(@PathVariable(value = "id") String id){
-        MedicalPlan medicalPlan = redisTemplate.opsForValue().get(id);
-        if(medicalPlan == null){
-            throw new CustomException("Object does not exist!", HttpStatus.NOT_FOUND);
-        }
-        redisTemplate.delete(medicalPlan.getObjectId());
+        String md5hash = redisMd5hashTemplate.opsForValue().get(id + "-md5hash");
+        MedicalPlan medicalPlan = redisMedicalPlanTemplate.opsForValue().get(id);
+        if(md5hash == null || medicalPlan == null) throw new CustomException("Medical plan with id: "+ id + "does not exist!", HttpStatus.NOT_FOUND);
+        redisMd5hashTemplate.delete(id + "-md5hash");
+        redisMedicalPlanTemplate.delete(medicalPlan.getObjectId());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 

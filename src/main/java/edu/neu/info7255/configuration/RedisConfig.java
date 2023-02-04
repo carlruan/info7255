@@ -11,11 +11,21 @@ import org.springframework.stereotype.Component;
 @Component
 public class RedisConfig {
     @Bean
-    public RedisTemplate<String, MedicalPlan> redisTemplate(RedisConnectionFactory connectionFactory) {
+    public RedisTemplate<String, MedicalPlan> redisMedicalPlanTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, MedicalPlan> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
         return template;
     }
+
+    @Bean
+    public RedisTemplate<String, String> redisMd5hashTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new StringRedisSerializer());
+        return template;
+    }
+
 }
