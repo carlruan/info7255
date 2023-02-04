@@ -1,5 +1,7 @@
 server:
   port: 8080
+etag:
+  hashAlgorithm: "MD5"
 spring:
   redis:
     host: localhost
@@ -8,3 +10,6 @@ spring:
   jackson:
     date-format: "yyyy-MM-dd HH:mm:ss"
     time-zone: "America/New_York"
+jsonSchema:
+  location: "/json/jsonSchema.json"
+  Integer: "deductible,copay"
