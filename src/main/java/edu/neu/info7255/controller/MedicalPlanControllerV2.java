@@ -20,17 +20,19 @@ import java.util.HashMap;
 import java.util.Set;
 
 @RestController
-@RequestMapping("/plan")
+@RequestMapping("/v2/plan")
 @Slf4j
-public class MedicalPlanController {
+public class MedicalPlanControllerV2 {
 
     private final JsonSchema jsonSchema;
     private final PlanService planService;
+    private final JSONObject jsonSchemaJsonObject;
 
     @Autowired
-    public MedicalPlanController(JsonSchema jsonSchema, PlanService planService){
+    public MedicalPlanControllerV2(JsonSchema jsonSchema, PlanService planService, JSONObject jsonObject, JSONObject jsonSchemaJsonObject){
         this.jsonSchema = jsonSchema;
         this.planService = planService;
+        this.jsonSchemaJsonObject = jsonSchemaJsonObject;
     }
     @PostMapping()
     public ResponseEntity<HashMap<String, String>> createPlan(@RequestBody String resquestJsonString){
@@ -76,7 +78,7 @@ public class MedicalPlanController {
         if(etag != null && etag.length() != 0 && curEtag.equals(etag)){
             return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(etag).body(null);
         }else{
-            return ResponseEntity.status(HttpStatus.OK).eTag(curEtag).body(planService.getById(id));
+            return ResponseEntity.status(HttpStatus.OK).eTag(curEtag).body(planService.getByIdWithJsonSchema(id, jsonSchemaJsonObject));
         }
     }
 
@@ -88,4 +90,10 @@ public class MedicalPlanController {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 
+
+    @GetMapping("/test")
+    public ResponseEntity<Object> test(){
+        JSONObject result = planService.getByIdWithJsonSchema("plan:12xvxc345ssdsds-508", jsonSchemaJsonObject);
+        return ResponseEntity.status(HttpStatus.OK).body(result);
+    }
 }

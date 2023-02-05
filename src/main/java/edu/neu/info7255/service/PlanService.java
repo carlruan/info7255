@@ -82,6 +82,31 @@ public class PlanService {
         return jsonObject;
     }
 
+    public JSONObject getByIdWithJsonSchema(String key, JSONObject jsonObject){
+        JSONObject result = new JSONObject();
+        jsonObject.keySet().forEach(jsonKey -> {
+            JSONObject childObject = (JSONObject) jsonObject.get(jsonKey);
+            String type = (String)childObject.get("type");
+            if(type.equals("object")){
+                String childKey = (String)redisTemplate.opsForSet().members(key+":"+jsonKey).iterator().next();
+                result.put(jsonKey, getByIdWithJsonSchema(childKey, (JSONObject)childObject.get("properties")));
+            }else if(type.equals("string")){
+                result.put(jsonKey, redisTemplate.opsForHash().get(key, jsonKey));
+            }else if(type.equals("integer")){
+                result.put(jsonKey, Integer.parseInt((String)redisTemplate.opsForHash().get(key, jsonKey)));
+            }else if(type.equals("array")){
+                List<JSONObject> jsonObjects = new ArrayList<>();
+                JSONObject items = (JSONObject) childObject.get("items");
+                Set<Object> keys = redisTemplate.opsForSet().members(key+":"+jsonKey);
+                keys.forEach(k ->
+                    jsonObjects.add(getByIdWithJsonSchema((String)k, (JSONObject) items.get("properties")))
+                );
+                result.put(jsonKey, jsonObjects);
+            }
+        });
+        return result;
+    }
+
     public void deleteById(String key){
         Set<String> keys = redisTemplate.keys(key + ":*");
         if(keys == null) return;
