@@ -86,7 +86,7 @@ public class MedicalPlanControllerV2 {
     public ResponseEntity<Object> deletePlan(@PathVariable(value = "id") String id){
         if(id == null || id.length() == 0) throw new CustomException("Medical plan id cannot be null!", HttpStatus.BAD_REQUEST);
         if(!planService.isPresent("plan:" + id)) throw new CustomException("Medical plan with id: " + id + " cannot be found!", HttpStatus.NOT_FOUND);
-        planService.deleteById("plan:"+id);
+        planService.deleteByIdWithJsonSchema("plan:"+id, jsonSchemaJsonObject);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 

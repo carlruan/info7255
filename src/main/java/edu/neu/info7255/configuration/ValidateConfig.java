@@ -18,7 +18,7 @@ public class ValidateConfig {
     private String schemaLocation;
     @Bean
     public JsonSchema getJsonSchemaFactory(){
-        JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
+        JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V4);
         return factory.getSchema(ValidateConfig.class.getResourceAsStream(schemaLocation));
     }
 

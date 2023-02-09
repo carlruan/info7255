@@ -1,19 +1,17 @@
 package edu.neu.info7255.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 
 @Service
+@Slf4j
 public class PlanService {
-    @Value("#{'${jsonSchema.Integer}'.trim().isEmpty() ? new String[] {} : '${jsonSchema.Integer}'.split(',')}")
-    private Set<String> numbers;
-
     private final EtagService etagService;
     private final RedisTemplate<String, Object> redisTemplate;
     @Autowired
@@ -45,43 +43,6 @@ public class PlanService {
         return key;
     }
 
-    public JSONObject getById(String key){
-        JSONObject jsonObject = new JSONObject();
-        Set<String> keys = redisTemplate.keys(key + ":*");
-        if(keys == null){
-            return jsonObject;
-        }
-        keys.add(key);
-        keys.forEach(jsonKey -> {
-            if(jsonKey.equals(key)){
-                Map<Object, Object> properties = redisTemplate.opsForHash().entries(jsonKey);
-                properties.forEach((k, v) ->{
-                    if(k.toString().equals("etag")) return;
-                    if(numbers.contains(k.toString())){
-                        jsonObject.put(k, Integer.parseInt(v.toString()));
-                    }else{
-                        jsonObject.put(k, v);
-                    }
-                });
-            }else{
-                String curKey = jsonKey.substring(key.length() + 1);
-                Set<Object> values = redisTemplate.opsForSet().members(jsonKey);
-                if(values != null){
-                    if(values.size() > 1 || curKey.equals("linkedPlanServices")){
-                        List<Object> curValues = new ArrayList<>();
-                        values.forEach(value ->
-                            curValues.add(getById((String)value))
-                        );
-                        jsonObject.put(curKey, curValues);
-                    }else{
-                        jsonObject.put(curKey, getById((String)values.iterator().next()));
-                    }
-                }
-            }
-        });
-        return jsonObject;
-    }
-
     public JSONObject getByIdWithJsonSchema(String key, JSONObject jsonObject){
         JSONObject result = new JSONObject();
         jsonObject.keySet().forEach(jsonKey -> {
@@ -96,8 +57,8 @@ public class PlanService {
                 result.put(jsonKey, Integer.parseInt((String)redisTemplate.opsForHash().get(key, jsonKey)));
             }else if(type.equals("array")){
                 List<JSONObject> jsonObjects = new ArrayList<>();
-                JSONObject items = (JSONObject) childObject.get("items");
                 Set<Object> keys = redisTemplate.opsForSet().members(key+":"+jsonKey);
+                JSONObject items = (JSONObject)((JSONArray) childObject.get("items")).get(0);
                 keys.forEach(k ->
                     jsonObjects.add(getByIdWithJsonSchema((String)k, (JSONObject) items.get("properties")))
                 );
@@ -107,18 +68,29 @@ public class PlanService {
         return result;
     }
 
-    public void deleteById(String key){
-        Set<String> keys = redisTemplate.keys(key + ":*");
-        if(keys == null) return;
-        keys.add(key);
-        keys.forEach(jsonKey -> {
-            if(!jsonKey.equals(key)){
-                Set<Object> values = redisTemplate.opsForSet().members(jsonKey);
-                if(values == null) return;
-                values.forEach(value -> deleteById((String)value));
+    public void deleteByIdWithJsonSchema(String key, JSONObject jsonObject){
+        jsonObject.keySet().forEach(jsonKey -> {
+            JSONObject childObject = (JSONObject) jsonObject.get(jsonKey);
+            String type = (String)childObject.get("type");
+            if(type.equals("object")){
+                String objectKey = key+":"+jsonKey;
+                String childKey = (String)redisTemplate.opsForSet().members(objectKey).iterator().next();
+                redisTemplate.delete(objectKey);
+                log.info("Deleted key " + objectKey);
+                deleteByIdWithJsonSchema(childKey, (JSONObject)childObject.get("properties"));
+            }else if(type.equals("array")){
+                String objectKey = key+":"+jsonKey;
+                JSONObject items = (JSONObject)((JSONArray) childObject.get("items")).get(0);
+                Set<Object> keys = redisTemplate.opsForSet().members(objectKey);
+                keys.forEach(k ->
+                        deleteByIdWithJsonSchema((String) k, (JSONObject) items.get("properties"))
+                );
+                redisTemplate.delete(objectKey);
+                log.info("Deleted key " + objectKey);
             }
-            redisTemplate.delete(jsonKey);
         });
+        redisTemplate.delete(key);
+//        log.info("Deleted key " + key);
     }
 
     private String saveEtag(JSONObject jsonObject, String key){
