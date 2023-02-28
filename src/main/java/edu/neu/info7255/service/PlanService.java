@@ -76,7 +76,6 @@ public class PlanService {
                 String objectKey = key+":"+jsonKey;
                 String childKey = (String)redisTemplate.opsForSet().members(objectKey).iterator().next();
                 redisTemplate.delete(objectKey);
-                log.info("Deleted key " + objectKey);
                 deleteByIdWithJsonSchema(childKey, (JSONObject)childObject.get("properties"));
             }else if(type.equals("array")){
                 String objectKey = key+":"+jsonKey;
@@ -86,11 +85,9 @@ public class PlanService {
                         deleteByIdWithJsonSchema((String) k, (JSONObject) items.get("properties"))
                 );
                 redisTemplate.delete(objectKey);
-                log.info("Deleted key " + objectKey);
             }
         });
         redisTemplate.delete(key);
-//        log.info("Deleted key " + key);
     }
 
     private String saveEtag(JSONObject jsonObject, String key){

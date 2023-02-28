@@ -9,11 +9,6 @@ import java.util.Date;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Message {
-    private String content;
-    private Date timestamp;
-
-    public Message(String content) {
-        this.content = content;
-        this.timestamp = new Date();
-    }
+    private String message;
+    
 }

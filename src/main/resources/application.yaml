@@ -3,6 +3,19 @@ server:
 etag:
   hashAlgorithm: "MD5"
 spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: "299521018542-r3naqevsqqplntc5871g32shuphnbof3.apps.googleusercontent.com"
+            client-secret: "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"
+            scope:
+              - openid
+      resourceserver:
+        jwt:
+          issuer-uri: "https://accounts.google.com"
+          jwk-set-uri: "https://www.googleapis.com/oauth2/v3/certs"
   redis:
     host: localhost
     port: 6379
@@ -11,7 +24,10 @@ spring:
     date-format: "yyyy-MM-dd HH:mm:ss"
     time-zone: "America/New_York"
 jsonSchema:
+  patch: "/json/patchSchema.json"
   location: "/json/jsonSchema.json"
 logging:
   level:
     root: info
+jwt:
+  audience: localhost:8080/plan, localhost:8080/plan/{id}

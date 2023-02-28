@@ -23,6 +23,6 @@ public class EtagService {
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
-        return hashString;
+        return "\"" + hashString + "\"";
     }
 }
