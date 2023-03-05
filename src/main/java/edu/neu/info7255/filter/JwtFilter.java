@@ -53,20 +53,25 @@ public class JwtFilter extends OncePerRequestFilter {
                     response.flushBuffer();
                 }
             } catch (Exception e){
-                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                response.setStatus(HttpStatus.UNAUTHORIZED.value());
-                response.getWriter().write(objectMapper.writeValueAsString(new Message(e.getMessage())));
+                setResponse(response,
+                        MediaType.APPLICATION_JSON_VALUE,
+                        HttpStatus.UNAUTHORIZED.value(),
+                        objectMapper.writeValueAsString(new Message(e.getMessage()))
+                );
                 response.flushBuffer();
             }
         }
-
-
-
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
         return "/token".equals(path);
+    }
+
+    private void setResponse(HttpServletResponse response, String contentType, int httpStatus, String message) throws IOException {
+        response.setContentType(contentType);
+        response.setStatus(httpStatus);
+        response.getWriter().write(message);
     }
 }

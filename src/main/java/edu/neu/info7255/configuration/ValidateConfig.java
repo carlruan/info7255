@@ -6,6 +6,7 @@ import com.networknt.schema.SpecVersion;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
+import edu.neu.info7255.util.JsonValidateUtil;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -34,26 +35,30 @@ public class ValidateConfig {
     @Value("${jsonSchema.patch}")
     private String patchSchemaLocation;
     @Bean(name = "jsonSchema")
-    public JsonSchema getJsonSchemaFactory(){
+    public JsonSchema planSchemaFactory(){
         JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V4);
-        return factory.getSchema(ValidateConfig.class.getResourceAsStream(schemaLocation));
+        JsonSchema jsonSchema = factory.getSchema(ValidateConfig.class.getResourceAsStream(schemaLocation));
+        JsonValidateUtil.schemaMap.put("plan", jsonSchema);
+        return jsonSchema;
     }
     @Bean(name = "patchSchema")
-    public JsonSchema getPatchSchemaFactory(){
+    public JsonSchema patchPlanSchemaFactory(){
         JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V4);
-        return factory.getSchema(ValidateConfig.class.getResourceAsStream(patchSchemaLocation));
+        JsonSchema jsonSchema = factory.getSchema(ValidateConfig.class.getResourceAsStream(patchSchemaLocation));
+        JsonValidateUtil.schemaMap.put("patchplan", jsonSchema);
+        return jsonSchema;
     }
 
-    @Bean(name = "jsonSchemaJSONObject")
-    public JSONObject getJsonSchemaJSONObject(){
-        return getJSONObjectByLocation(schemaLocation);
+    @Bean(name = "planJSONObject")
+    public JSONObject planJSONObject(){
+        return getJSONObjectByLocation(schemaLocation, "plan");
     }
-    @Bean(name = "patchSchemaJSONObject")
-    public JSONObject getPatchSchemaJSONObject(){
-        return getJSONObjectByLocation(patchSchemaLocation);
+    @Bean(name = "patchPlanJSONObject")
+    public JSONObject patchPlanJSONObject(){
+        return getJSONObjectByLocation(patchSchemaLocation, "patchplan");
     }
 
-    public JSONObject getJSONObjectByLocation(String location){
+    public JSONObject getJSONObjectByLocation(String location, String type){
         String json = new Scanner(ValidateConfig.class.getResourceAsStream(location), "UTF-8").useDelimiter("\\A").next();
         JSONObject jsonObject = new JSONObject();
         try {
@@ -61,7 +66,9 @@ public class ValidateConfig {
         } catch (ParseException e) {
             e.printStackTrace();
         }
-        return (JSONObject)jsonObject.get("properties");
+        JSONObject res = (JSONObject)jsonObject.get("properties");
+        JsonValidateUtil.jsonObjectMap.put(type, res);
+        return res;
     }
 
 }

@@ -11,11 +11,11 @@ import java.util.*;
 
 @Service
 @Slf4j
-public class PlanService {
+public class RedisService {
     private final EtagService etagService;
     private final RedisTemplate<String, Object> redisTemplate;
     @Autowired
-    public PlanService(EtagService etagService, RedisTemplate<String, Object> redisTemplate){
+    public RedisService(EtagService etagService, RedisTemplate<String, Object> redisTemplate){
         this.etagService = etagService;
         this.redisTemplate = redisTemplate;
     }

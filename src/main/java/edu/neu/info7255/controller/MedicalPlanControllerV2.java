@@ -1,15 +1,11 @@
 package edu.neu.info7255.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.networknt.schema.JsonSchema;
 import edu.neu.info7255.exception.CustomException;
-import edu.neu.info7255.service.PlanService;
+import edu.neu.info7255.service.RedisService;
 import edu.neu.info7255.util.JsonValidateUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.json.simple.JSONObject;
-import org.json.simple.parser.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,87 +17,69 @@ import javax.validation.constraints.NotNull;
 import java.util.HashMap;
 
 @RestController
-@RequestMapping("/v2/plan")
+@RequestMapping("/v2")
 @Slf4j
 @Validated
 public class MedicalPlanControllerV2 {
 
-    private final JsonSchema jsonSchema;
-    private final JsonSchema patchSchema;
-    private final PlanService planService;
-    private final JSONObject jsonSchemaJsonObject;
-    private final JSONObject patchSchemaJsonObject;
+    private final RedisService redisService;
     private JsonValidateUtil jsonValidateUtil;
 
     @Autowired
-    public MedicalPlanControllerV2(@Qualifier("jsonSchema") JsonSchema jsonSchema,
-                                   @Qualifier("patchSchema")JsonSchema patchSchema,
-                                   PlanService planService,
-                                   @Qualifier("jsonSchemaJSONObject")JSONObject jsonSchemaJsonObject,
-                                   @Qualifier("patchSchemaJSONObject")JSONObject patchSchemaJsonObject,
+    public MedicalPlanControllerV2(RedisService redisService,
                                    JsonValidateUtil jsonValidateUtil){
-        this.jsonSchema = jsonSchema;
-        this.patchSchema = patchSchema;
-        this.planService = planService;
-        this.jsonSchemaJsonObject = jsonSchemaJsonObject;
-        this.patchSchemaJsonObject = patchSchemaJsonObject;
+        this.redisService = redisService;
         this.jsonValidateUtil = jsonValidateUtil;
     }
-    @PostMapping()
-    public ResponseEntity<HashMap<String, String>> createPlan(@RequestBody @NotBlank String requestJsonString){
+    @PostMapping("/{type}")
+    public ResponseEntity<HashMap<String, String>> createPlan(@PathVariable(value = "type") @NotBlank String type,
+                                                              @RequestBody @NotBlank String requestJsonString){
+
         // Json Schema validation
-        JSONObject json;
-        try {
-            json = jsonValidateUtil.validateJsonSchema(requestJsonString, jsonSchema);
-        } catch (JsonProcessingException e) {
-            throw new CustomException(e.getMessage(), HttpStatus.BAD_REQUEST);
-        } catch (ParseException e) {
-            throw new CustomException(e.getPosition()+", " + e, HttpStatus.BAD_REQUEST);
-        }
+        JSONObject json = jsonValidateUtil.validateJsonSchema(requestJsonString, type);
         String objectId = (String)json.get("objectId");
-        String key = "plan:" + objectId;
-        if(planService.isPresent(key)) throw new CustomException("Medical plan with id: " + key + " already exists!", HttpStatus.CONFLICT);
-        String etag = planService.save(json, key);
+        String key = type + ":" + objectId;
+        if(redisService.isPresent(key)) throw new CustomException("Object type: " + type + " with id: " + key + " already exists!", HttpStatus.CONFLICT);
+        String etag = redisService.save(json, key);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .eTag(etag)
                 .body(new HashMap<>() {{
-                    put("objectId", objectId);
+                    put("object_id", objectId);
                 }});
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{type}/{id}")
     public ResponseEntity<JSONObject> getPlan(@RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String etag,
-                                              @PathVariable(value = "id") @NotNull @NotBlank String id) {
-        id = "plan:" + id;
-        if(!planService.isPresent(id)) throw new CustomException(id + " cannot be found!", HttpStatus.NOT_FOUND);
-        String curEtag = planService.getEtag(id);
-        if(etag != null && etag.length() != 0 && curEtag.equals(etag)){
+                                              @PathVariable(value = "type") @NotBlank String type,
+                                              @PathVariable(value = "id") @NotBlank String id) {
+        id = type + ":" + id;
+        if(!redisService.isPresent(id)) throw new CustomException(id + " cannot be found!", HttpStatus.NOT_FOUND);
+        String curEtag = redisService.getEtag(id);
+        if(etag != null && !etag.isBlank() && curEtag.equals(etag)){
             return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(curEtag).body(null);
         }else{
-            return ResponseEntity.status(HttpStatus.OK).eTag(curEtag).body(planService.getByIdWithJsonSchema(id, jsonSchemaJsonObject));
+            JSONObject jsonObject = JsonValidateUtil.jsonObjectMap.get(type);
+            if(jsonObject == null){
+                throw new CustomException("Unsupported object type: " + type, HttpStatus.BAD_REQUEST);
+            }
+            return ResponseEntity.status(HttpStatus.OK).eTag(curEtag).body(redisService.getByIdWithJsonSchema(id, jsonObject));
         }
     }
 
-    @PatchMapping("/{id}")
+    @PatchMapping("/{type}/{id}")
     public ResponseEntity<JSONObject> patchPlan(@RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String etag,
+                                                @PathVariable(value = "type") @NotBlank String type,
                                                 @PathVariable(value = "id") @NotNull String id,
                                                 @RequestBody @NotBlank String requestJsonString){
         if(etag == null || etag.isBlank()) throw new CustomException("etag cannot be null or empty!", HttpStatus.BAD_REQUEST);
-        id = "plan:" + id;
-        if(!planService.isPresent(id)) throw new CustomException(id + " cannot be found!", HttpStatus.NOT_FOUND);
-        String curEtag = planService.getEtag(id);
+        JSONObject jsonObject = jsonValidateUtil.validateJsonSchema(requestJsonString, "patch" + type);
+        id = type+ ":" + id;
+        if(!redisService.isPresent(id)) throw new CustomException(id + " cannot be found!", HttpStatus.NOT_FOUND);
+        String curEtag = redisService.getEtag(id);
         if(curEtag.equals(etag)){
             // Json Schema validation
-            JSONObject jsonObject;
-            try {
-                jsonObject = jsonValidateUtil.validateJsonSchema(requestJsonString, patchSchema);
-            } catch (JsonProcessingException e) {
-                throw new CustomException(e.getMessage(), HttpStatus.BAD_REQUEST);
-            } catch (ParseException e) {
-                throw new CustomException(e.getPosition()+", " + e, HttpStatus.BAD_REQUEST);
-            }
-            String newEtag = planService.save(jsonObject, id);
+            String newEtag = redisService.save(jsonObject, id);
             return ResponseEntity.status(HttpStatus.CREATED).eTag(newEtag).body(null);
         }else{
             return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED).eTag(curEtag).body(null);
@@ -109,11 +87,17 @@ public class MedicalPlanControllerV2 {
 
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Object> deletePlan(@PathVariable(value = "id") @NotBlank String id){
-        id = "plan" + id;
-        if(!planService.isPresent(id)) throw new CustomException(id + " cannot be found!", HttpStatus.NOT_FOUND);
-        planService.deleteByIdWithJsonSchema(id, jsonSchemaJsonObject);
+    @DeleteMapping("/{type}/{id}")
+    public ResponseEntity<Object> deletePlan(@PathVariable(value = "type") @NotBlank String type,
+                                             @PathVariable(value = "id") @NotBlank String id){
+        id = type + ":" + id;
+        if(!redisService.isPresent(id)) throw new CustomException(id + " cannot be found!", HttpStatus.NOT_FOUND);
+        JSONObject jsonObject = JsonValidateUtil.jsonObjectMap.get(type);
+        if(jsonObject == null){
+            throw new CustomException("Unsupported object type: " + type, HttpStatus.BAD_REQUEST);
+        }
+        redisService.deleteByIdWithJsonSchema(id, jsonObject);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
+
 }
