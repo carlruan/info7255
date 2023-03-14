@@ -72,7 +72,7 @@ public class MedicalPlanControllerV2 {
                                                 @PathVariable(value = "type") @NotBlank String type,
                                                 @PathVariable(value = "id") @NotNull String id,
                                                 @RequestBody @NotBlank String requestJsonString){
-        if(etag == null || etag.isBlank()) throw new CustomException("etag cannot be null or empty!", HttpStatus.BAD_REQUEST);
+        if(etag == null || etag.isBlank()) throw new CustomException("If-Match etag cannot be null or empty!", HttpStatus.BAD_REQUEST);
         JSONObject jsonObject = jsonValidateUtil.validateJsonSchema(requestJsonString, "patch" + type);
         id = type+ ":" + id;
         if(!redisService.isPresent(id)) throw new CustomException(id + " cannot be found!", HttpStatus.NOT_FOUND);

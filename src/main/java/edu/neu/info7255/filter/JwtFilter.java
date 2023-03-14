@@ -1,7 +1,6 @@
 package edu.neu.info7255.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nimbusds.jose.JOSEException;
 import edu.neu.info7255.model.Message;
 import edu.neu.info7255.util.TokenGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +14,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.text.ParseException;
 
 //@Component
 public class JwtFilter extends OncePerRequestFilter {

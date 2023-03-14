@@ -24,11 +24,12 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
-
+    /*
+    For Google Oauth 2.0
+     */
     @Override
     protected void configure(final HttpSecurity http) throws Exception{
         http.authorizeRequests()
-                .antMatchers("/token").permitAll()
                 .anyRequest().fullyAuthenticated()
                 .and()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
@@ -39,7 +40,18 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .cors().and().csrf().disable();
     }
 
-
+    /*
+    For Self generated Oauth
+     */
+    /*@Override
+    protected void configure(final HttpSecurity http) throws Exception{
+        http.authorizeRequests()
+                .antMatchers("/token").permitAll()
+                .and()
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .and()
+                .cors().and().csrf().disable();
+    }*/
 
 }
 
