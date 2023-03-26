@@ -71,8 +71,8 @@ public class RedisService {
         return result;
     }
 
-    public void deleteObj(String key, JSONObject jsonObject){
-        rabbitSenderService.send("D" + getByIdWithJsonSchema(key, jsonObject).toJSONString());
+    public void deleteObj(String orgId, String key, JSONObject jsonObject){
+        rabbitSenderService.send("D" + orgId);
         this.deleteByIdWithJsonSchema(key, jsonObject);
     }
 

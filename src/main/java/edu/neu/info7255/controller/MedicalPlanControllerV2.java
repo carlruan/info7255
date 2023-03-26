@@ -90,13 +90,15 @@ public class MedicalPlanControllerV2 {
     @DeleteMapping("/{type}/{id}")
     public ResponseEntity<Object> deletePlan(@PathVariable(value = "type") @NotBlank String type,
                                              @PathVariable(value = "id") @NotBlank String id){
+
+        String orgId = id;
         id = type + ":" + id;
         if(!redisService.isPresent(id)) throw new CustomException(id + " cannot be found!", HttpStatus.NOT_FOUND);
         JSONObject jsonObject = JsonValidateUtil.jsonObjectMap.get(type);
         if(jsonObject == null){
             throw new CustomException("Unsupported object type: " + type, HttpStatus.BAD_REQUEST);
         }
-        redisService.deleteObj(id, jsonObject);
+        redisService.deleteObj(orgId, id, jsonObject);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 
