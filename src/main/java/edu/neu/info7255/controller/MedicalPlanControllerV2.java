@@ -80,7 +80,7 @@ public class MedicalPlanControllerV2 {
         if(curEtag.equals(etag)){
             // Json Schema validation
             String newEtag = redisService.save(jsonObject, id);
-            return ResponseEntity.status(HttpStatus.CREATED).eTag(newEtag).body(null);
+            return ResponseEntity.status(HttpStatus.OK).eTag(newEtag).body(null);
         }else{
             return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED).eTag(curEtag).body(null);
         }
@@ -96,7 +96,7 @@ public class MedicalPlanControllerV2 {
         if(jsonObject == null){
             throw new CustomException("Unsupported object type: " + type, HttpStatus.BAD_REQUEST);
         }
-        redisService.deleteByIdWithJsonSchema(id, jsonObject);
+        redisService.deleteObj(id, jsonObject);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 

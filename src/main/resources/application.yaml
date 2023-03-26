@@ -23,6 +23,13 @@ spring:
   jackson:
     date-format: "yyyy-MM-dd HH:mm:ss"
     time-zone: "America/New_York"
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+queue:
+  name: planQueue
 jsonSchema:
   patch: "/json/patchSchema.json"
   location: "/json/jsonSchema.json"

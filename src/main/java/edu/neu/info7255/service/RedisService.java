@@ -14,14 +14,17 @@ import java.util.*;
 public class RedisService {
     private final EtagService etagService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final RabbitSenderService rabbitSenderService;
     @Autowired
-    public RedisService(EtagService etagService, RedisTemplate<String, Object> redisTemplate){
+    public RedisService(EtagService etagService, RedisTemplate<String, Object> redisTemplate, RabbitSenderService rabbitSenderService){
         this.etagService = etagService;
         this.redisTemplate = redisTemplate;
+        this.rabbitSenderService =rabbitSenderService;
     }
     public String save(JSONObject jsonObject, String key){
         String etag = saveEtag(jsonObject, key);
         savePlan(jsonObject);
+        rabbitSenderService.send("C" + jsonObject.toJSONString());
         return etag;
     }
     private String savePlan(JSONObject jsonObject){
@@ -66,6 +69,11 @@ public class RedisService {
             }
         });
         return result;
+    }
+
+    public void deleteObj(String key, JSONObject jsonObject){
+        rabbitSenderService.send("D" + getByIdWithJsonSchema(key, jsonObject).toJSONString());
+        this.deleteByIdWithJsonSchema(key, jsonObject);
     }
 
     public void deleteByIdWithJsonSchema(String key, JSONObject jsonObject){
