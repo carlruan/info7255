@@ -23,7 +23,7 @@ import java.util.HashMap;
 public class MedicalPlanControllerV2 {
 
     private final RedisService redisService;
-    private JsonValidateUtil jsonValidateUtil;
+    private final JsonValidateUtil jsonValidateUtil;
 
     @Autowired
     public MedicalPlanControllerV2(RedisService redisService,
@@ -45,7 +45,8 @@ public class MedicalPlanControllerV2 {
                 .status(HttpStatus.CREATED)
                 .eTag(etag)
                 .body(new HashMap<>() {{
-                    put("object_id", objectId);
+                    put("objectId", objectId);
+                    put("objectType", type);
                 }});
     }
 
@@ -80,7 +81,7 @@ public class MedicalPlanControllerV2 {
         if(curEtag.equals(etag)){
             // Json Schema validation
             String newEtag = redisService.save(jsonObject, id);
-            return ResponseEntity.status(HttpStatus.OK).eTag(newEtag).body(null);
+            return ResponseEntity.status(HttpStatus.CREATED).eTag(newEtag).body(null);
         }else{
             return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED).eTag(curEtag).body(null);
         }

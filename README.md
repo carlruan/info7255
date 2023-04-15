@@ -28,6 +28,16 @@ GET plan/_search
    }
 }
 
+# Search obj with Id "27283xvx9asdff-504"
+GET plan/_search
+{
+  "query" : {
+      "match" : {
+        "objectId": "27283xvx9asdff-504"
+      }
+   }
+}
+
 # Search children of type plan
 GET plan/_search
 {
@@ -62,36 +72,18 @@ GET plan/_search
     }
   }
 
-
-# Search for any object which copay is greater or equal than 100
-GET plan/_search
-{
-  "query" : {
-    "range" : {
-      "copay" :
-      {
-        "gte": 100
-      }
-    }
-  }
-}
-
-# Search parent of type planserviceCostShares with objectId 1234512xvc1314sdfsd-506
+# Search parent of type planserviceCostShares with copay greater than or equal to 100
 GET plan/_search
 {
   "query" : {
     "has_child" : {
       "type" : "planserviceCostShares",
       "query" : {
-        "bool" : {
-          "must" : [
-            {
-             "match" : {
-               "objectId" : "1234512xvc1314sdfsd-506"
-            }
+        "range": {
+          "copay": {
+            "gte": 100
           }
-        ]
-       }
+        }
       }
      }
     }
